@@ -1,4 +1,4 @@
-name: Deploy Nodejs App to Docker Container
+name: Deploy Node App
 
 on:
   push:
@@ -7,24 +7,22 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      - name: Deploy Via SSH
-        uses: appleboy/ssh-action@master
+      - name: Pull latest code
+        run: |
+          docker exec mycontainer sh -c "cd /coding/cicd && git pull"
 
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: root
-          key: ${{ secrets.SSH_KEY }}
-          port: 2222
+      - name: Install dependencies
+        run: |
+          docker exec mycontainer sh -c "cd /coding/cicd && npm install"
 
-          script: |
-            cd /coding/cicd
+      - name: Restart app
+        run: |
+          docker exec mycontainer sh -c "pkill node || true"
 
-            git pull origin main
-
-            rm -rf node_modules
-            npm install
-
-            npm run dev
+          docker exec -d mycontainer sh -c "
+            cd /coding/cicd &&
+            nohup npm run dev > app.log 2>&1 &
+          "
