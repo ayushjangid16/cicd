@@ -1,0 +1,30 @@
+name: Deploy Nodejs App to Docker Container
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy Via SSH
+        uses: appleboy/ssh-action@master
+
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          port: 2222
+
+          script: |
+            cd /coding/cicd
+
+            git pull origin main
+
+            rm -rf node_modules
+            npm install
+
+            npm run dev
