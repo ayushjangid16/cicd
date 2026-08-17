@@ -16,12 +16,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Git pull
-        run: git pull origin main
-
-      - name: Remove old node_modules
-        run: rm -rf node_modules
-
       - name: Install dependencies
         run: npm ci
 
