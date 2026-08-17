@@ -19,7 +19,7 @@ jobs:
         run: npm ci
 
       - name: Stop old application
-        run: pkill -f "node" || true
+        run: pm2 delete my-app || true
 
       - name: Start application
-        run: nohup npm run dev > app.log 2>&1 &
+        run: pm2 start npm --name my-app -- run dev
