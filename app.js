@@ -3,7 +3,7 @@ const app = express();
 
 app.get("/", (req, res) => {
   return res.json({
-    message: "Todo: Learn Testing now hello now?",
+    message: "Testng ",
     metadata: "This is a custom response",
   });
 });
