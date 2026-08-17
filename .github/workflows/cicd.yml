@@ -16,4 +16,4 @@ jobs:
         run: npm ci
 
       - name: Start application
-        run: npm run dev
+        run: nohup npm run dev > app.log 2>&1 &
