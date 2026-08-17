@@ -18,7 +18,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd /hiplstaging2/public_html/cicd.hipl-staging2.com
+            cd /home/hiplstaging2/public_html/cicd.hipl-staging2.com
             git pull
             npm install
             pm2 restart "cicd-backend" || PORT = 4545 pm2 start npm --name "cicd-backend" -- run dev
