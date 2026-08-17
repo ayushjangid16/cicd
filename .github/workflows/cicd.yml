@@ -6,16 +6,24 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+
+    defaults:
+      run:
+        working-directory: app
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Git pull
+        run: git pull origin main
+
+      - name: Remove old node_modules
+        run: rm -rf node_modules
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Start application
+        run: npm run dev
