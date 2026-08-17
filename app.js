@@ -3,7 +3,7 @@ const app = express();
 
 app.get("/", (req, res) => {
   return res.json({
-    message: "Hello World! This is a sample API",
+    message: "Todo: Learn Testing now",
     metadata: "This is a custom response",
   });
 });
