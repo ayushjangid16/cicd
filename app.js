@@ -3,7 +3,7 @@ const app = express();
 
 app.get("/", (req, res) => {
   return res.json({
-    message: "Testng again",
+    message: "Completed CICD pipeline",
     metadata: "This is a custom response",
   });
 });
