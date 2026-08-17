@@ -4,7 +4,7 @@ const app = express();
 app.get("/", (req, res) => {
   return res.json({
     message: "Completed CICD pipeline",
-    metadata: "This is a custom response",
+    metadata: "Finally it has been done",
   });
 });
 
