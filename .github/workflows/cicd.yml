@@ -23,6 +23,6 @@ jobs:
           script: |
             cd /hiplstaging2/public_html/cicd.hipl-staging2.com
             git pull
-            npm ci 
+            npm install
+            pm2 restart "cicd-backend" || pm2 start npm --name "cicd-backend" -- run dev
             pm2 save
-            pm2 start npm run --name "cicd-backend" -- dev
