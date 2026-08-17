@@ -17,10 +17,11 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: hiplstaging2
+          port: ${{secrets.SSH_PORT}}
+          username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd /home/hiplstaging2/public_html/cicd.hipl-staging2.com
+            cd /hiplstaging2/public_html/cicd.hipl-staging2.com
             git pull
             npm ci 
             pm2 save
