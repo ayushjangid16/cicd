@@ -3,8 +3,8 @@ const app = express();
 
 app.get("/", (req, res) => {
   return res.json({
-    message: "All vanished",
-    metadata: "Change complete now",
+    message: "Hello World",
+    metadata: "This is a sample API response",
   });
 });
 
