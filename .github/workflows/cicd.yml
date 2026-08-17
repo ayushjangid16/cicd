@@ -18,21 +18,23 @@ jobs:
 
     steps:
 
-      # ---------------------------------------
+      # =======================================
       # 1. Prepare application directory
-      # ---------------------------------------
+      # =======================================
       - name: Prepare Application Directory
         run: |
+          echo "Preparing application directory..."
+
           mkdir -p /app
 
-      # ---------------------------------------
+      # =======================================
       # 2. Clone or Update Repository
-      # ---------------------------------------
+      # =======================================
       - name: Clone or Update Repository
         run: |
           if [ -d "$APP_DIR/.git" ]; then
             echo "Repository already exists."
-            echo "Pulling latest changes..."
+            echo "Fetching latest changes..."
 
             cd "$APP_DIR"
 
@@ -43,60 +45,85 @@ jobs:
             echo "Repository does not exist."
             echo "Cloning repository..."
 
-            git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
+            git clone \
+              --branch "$BRANCH" \
+              "$REPO_URL" \
+              "$APP_DIR"
           fi
 
-      # ---------------------------------------
-      # 3. Stop Current Application
-      # ---------------------------------------
-      - name: Stop Current Application
+      # =======================================
+      # 3. Stop Existing Application
+      # =======================================
+      - name: Stop Existing Application
         run: |
-          echo "Stopping current application..."
+          echo "Checking existing PM2 application..."
 
-          pm2 stop "$APP_NAME" || true
+          if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
+            echo "Stopping $APP_NAME..."
 
-      # ---------------------------------------
-      # 4. Clean old dependencies
-      # ---------------------------------------
+            pm2 stop "$APP_NAME"
+
+          else
+            echo "No existing application found."
+          fi
+
+      # =======================================
+      # 4. Remove Old Node Modules
+      # =======================================
       - name: Remove Old Node Modules
         run: |
           cd "$APP_DIR"
 
           echo "Removing old node_modules..."
+
           rm -rf node_modules
 
-      # ---------------------------------------
-      # 5. Install dependencies
-      # ---------------------------------------
+      # =======================================
+      # 5. Install Dependencies
+      # =======================================
       - name: Install Dependencies
         run: |
           cd "$APP_DIR"
 
           echo "Installing dependencies..."
+
           npm ci
 
-      # ---------------------------------------
-      # 6. Start / Restart Application
-      # ---------------------------------------
+      # =======================================
+      # 6. Start Application with PM2
+      # =======================================
       - name: Start Application
         run: |
           cd "$APP_DIR"
 
-          echo "Starting application with PM2..."
+          echo "Starting application..."
 
           if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
-            pm2 restart "$APP_NAME"
+
+            echo "Application already exists in PM2."
+            echo "Restarting application..."
+
+            RUNNER_TRACKING_ID="" pm2 restart "$APP_NAME"
+
           else
-            pm2 start npm \
+
+            echo "Application does not exist in PM2."
+            echo "Starting new application..."
+
+            RUNNER_TRACKING_ID="" pm2 start npm \
               --name "$APP_NAME" \
+              --cwd "$APP_DIR" \
               -- run dev
+
           fi
 
-          pm2 save
+          echo "Saving PM2 process list..."
 
-      # ---------------------------------------
-      # 7. Check PM2 status
-      # ---------------------------------------
+          RUNNER_TRACKING_ID="" pm2 save
+
+      # =======================================
+      # 7. Verify PM2 Status
+      # =======================================
       - name: Verify PM2 Application
         run: |
           echo "Checking PM2 status..."
@@ -106,34 +133,58 @@ jobs:
           if pm2 describe "$APP_NAME" | grep -q "online"; then
             echo "PM2 application is online."
           else
-            echo "Application is not online."
-            pm2 logs "$APP_NAME" --lines 50 --nostream
+            echo "Application is NOT online."
+
+            echo "Showing application logs..."
+
+            pm2 logs "$APP_NAME" \
+              --lines 50 \
+              --nostream
+
             exit 1
           fi
 
-      # ---------------------------------------
+      # =======================================
       # 8. Health Check
-      # ---------------------------------------
+      # =======================================
       - name: Health Check
         run: |
-          echo "Waiting for application to start..."
+          echo "Checking application health..."
 
           for i in {1..10}; do
-            if curl -f "http://localhost:$APP_PORT" > /dev/null 2>&1; then
-              echo "Application is live on port $APP_PORT."
+
+            if curl -f \
+              "http://localhost:$APP_PORT" \
+              > /dev/null 2>&1; then
+
+              echo "======================================"
+              echo "Application is LIVE!"
+              echo "Port: $APP_PORT"
+              echo "======================================"
+
               exit 0
+
             fi
 
-            echo "Application not ready yet... attempt $i/10"
+            echo "Application not ready yet..."
+            echo "Attempt $i/10"
+
             sleep 2
+
           done
 
-          echo "Application failed health check."
+          echo "======================================"
+          echo "Application health check FAILED"
+          echo "======================================"
 
+          echo ""
           echo "PM2 status:"
           pm2 status
 
+          echo ""
           echo "Application logs:"
-          pm2 logs "$APP_NAME" --lines 50 --nostream
+          pm2 logs "$APP_NAME" \
+            --lines 50 \
+            --nostream
 
           exit 1
