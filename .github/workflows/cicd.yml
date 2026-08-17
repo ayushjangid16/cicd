@@ -13,6 +13,8 @@ jobs:
       APP_DIR: /app/cicd
       REPO_URL: https://github.com/ayushjangid16/cicd.git
       BRANCH: main
+      APP_NAME: cicd-app
+      APP_PORT: 4545
 
     steps:
 
@@ -24,7 +26,7 @@ jobs:
           mkdir -p /app
 
       # ---------------------------------------
-      # 2. Clone or Pull Repository
+      # 2. Clone or Update Repository
       # ---------------------------------------
       - name: Clone or Update Repository
         run: |
@@ -42,12 +44,19 @@ jobs:
             echo "Cloning repository..."
 
             git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
-
-            cd "$APP_DIR"
           fi
 
       # ---------------------------------------
-      # 3. Clean old dependencies
+      # 3. Stop Current Application
+      # ---------------------------------------
+      - name: Stop Current Application
+        run: |
+          echo "Stopping current application..."
+
+          pm2 stop "$APP_NAME" || true
+
+      # ---------------------------------------
+      # 4. Clean old dependencies
       # ---------------------------------------
       - name: Remove Old Node Modules
         run: |
@@ -57,7 +66,7 @@ jobs:
           rm -rf node_modules
 
       # ---------------------------------------
-      # 4. Install dependencies
+      # 5. Install dependencies
       # ---------------------------------------
       - name: Install Dependencies
         run: |
@@ -67,37 +76,64 @@ jobs:
           npm ci
 
       # ---------------------------------------
-      # 5. Stop previous application
-      # ---------------------------------------
-      - name: Stop Previous Application
-        run: |
-          pkill -f "$APP_DIR" || true
-
-      # ---------------------------------------
-      # 6. Start application
+      # 6. Start / Restart Application
       # ---------------------------------------
       - name: Start Application
         run: |
           cd "$APP_DIR"
 
-          echo "Starting application..."
+          echo "Starting application with PM2..."
 
-          RUNNER_TRACKING_ID="" \
-          nohup npm run dev > app.log 2>&1 &
-
-          echo "Application started."
-
-      # ---------------------------------------
-      # 7. Verify application started
-      # ---------------------------------------
-      - name: Verify Application
-        run: |
-          sleep 5
-
-          if pgrep -f "$APP_DIR" > /dev/null; then
-            echo "Application is running."
+          if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
+            pm2 restart "$APP_NAME"
           else
-            echo "Application failed to start."
-            cat "$APP_DIR/app.log"
+            pm2 start npm \
+              --name "$APP_NAME" \
+              -- run dev
+          fi
+
+          pm2 save
+
+      # ---------------------------------------
+      # 7. Check PM2 status
+      # ---------------------------------------
+      - name: Verify PM2 Application
+        run: |
+          echo "Checking PM2 status..."
+
+          pm2 status
+
+          if pm2 describe "$APP_NAME" | grep -q "online"; then
+            echo "PM2 application is online."
+          else
+            echo "Application is not online."
+            pm2 logs "$APP_NAME" --lines 50 --nostream
             exit 1
           fi
+
+      # ---------------------------------------
+      # 8. Health Check
+      # ---------------------------------------
+      - name: Health Check
+        run: |
+          echo "Waiting for application to start..."
+
+          for i in {1..10}; do
+            if curl -f "http://localhost:$APP_PORT" > /dev/null 2>&1; then
+              echo "Application is live on port $APP_PORT."
+              exit 0
+            fi
+
+            echo "Application not ready yet... attempt $i/10"
+            sleep 2
+          done
+
+          echo "Application failed health check."
+
+          echo "PM2 status:"
+          pm2 status
+
+          echo "Application logs:"
+          pm2 logs "$APP_NAME" --lines 50 --nostream
+
+          exit 1
