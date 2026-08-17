@@ -3,7 +3,7 @@ const app = express();
 
 app.get("/", (req, res) => {
   return res.json({
-    message: "Hello World again and again and again",
+    message: "Hello World!",
     metadata: "This is a sample API response",
   });
 });
