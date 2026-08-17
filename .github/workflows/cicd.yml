@@ -1,25 +1,103 @@
-name: Custom CICD pipeline
+name: Deploy Staging Application
 
 on:
   push:
     branches: ["main"]
 
 jobs:
-  build:
+  deploy:
+    name: Deploy to Staging
     runs-on: self-hosted
 
+    env:
+      APP_DIR: /app/cicd
+      REPO_URL: https://github.com/ayushjangid16/cicd.git
+      BRANCH: main
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      - name: Remove old node_modules
-        run: rm -rf node_modules
+      # ---------------------------------------
+      # 1. Prepare application directory
+      # ---------------------------------------
+      - name: Prepare Application Directory
+        run: |
+          mkdir -p /app
 
-      - name: Install dependencies
-        run: npm ci
+      # ---------------------------------------
+      # 2. Clone or Pull Repository
+      # ---------------------------------------
+      - name: Clone or Update Repository
+        run: |
+          if [ -d "$APP_DIR/.git" ]; then
+            echo "Repository already exists."
+            echo "Pulling latest changes..."
 
-      - name: Stop old application
-        run: pm2 delete my-app || true
+            cd "$APP_DIR"
 
-      - name: Start application
-        run: pm2 start npm --name my-app -- run dev
+            git fetch origin
+            git reset --hard "origin/$BRANCH"
+
+          else
+            echo "Repository does not exist."
+            echo "Cloning repository..."
+
+            git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
+
+            cd "$APP_DIR"
+          fi
+
+      # ---------------------------------------
+      # 3. Clean old dependencies
+      # ---------------------------------------
+      - name: Remove Old Node Modules
+        run: |
+          cd "$APP_DIR"
+
+          echo "Removing old node_modules..."
+          rm -rf node_modules
+
+      # ---------------------------------------
+      # 4. Install dependencies
+      # ---------------------------------------
+      - name: Install Dependencies
+        run: |
+          cd "$APP_DIR"
+
+          echo "Installing dependencies..."
+          npm ci
+
+      # ---------------------------------------
+      # 5. Stop previous application
+      # ---------------------------------------
+      - name: Stop Previous Application
+        run: |
+          pkill -f "$APP_DIR" || true
+
+      # ---------------------------------------
+      # 6. Start application
+      # ---------------------------------------
+      - name: Start Application
+        run: |
+          cd "$APP_DIR"
+
+          echo "Starting application..."
+
+          RUNNER_TRACKING_ID="" \
+          nohup npm run dev > app.log 2>&1 &
+
+          echo "Application started."
+
+      # ---------------------------------------
+      # 7. Verify application started
+      # ---------------------------------------
+      - name: Verify Application
+        run: |
+          sleep 5
+
+          if pgrep -f "$APP_DIR" > /dev/null; then
+            echo "Application is running."
+          else
+            echo "Application failed to start."
+            cat "$APP_DIR/app.log"
+            exit 1
+          fi
