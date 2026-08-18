@@ -5,7 +5,8 @@ app.get('/', (req: Request, res: Response) => {
   const a: number = 'Hello';
 
   console.log(a);
-  return res.json({ message: 'Hello Checking the CI part now' });
+  return res.json({ 
+    message: 'Hello Checking the CI part now' });
 });
 
 app.listen(4545, () => {
