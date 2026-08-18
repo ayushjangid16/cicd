@@ -6,20 +6,154 @@ on:
       - main
 
 jobs:
+  # linting
+  linting:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+  # typecheck
+  typecheck:
+    needs: linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run typecheck
+        run: npm run typecheck
+
+  # deploy
   deploy:
+    needs: typecheck
     runs-on: ubuntu-latest
 
     steps:
       - name: Deploy Via SSH
         uses: appleboy/ssh-action@v1.0.3
+
         with:
           host: ${{ secrets.SSH_HOST }}
-          port: ${{secrets.SSH_PORT}}
+          port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+
+          # if something went wrong in this stage make sure to revert
           script: |
-            cd /home/hiplstaging2/public_html/cicd.hipl-staging2.com
-            git pull
-            npm install
-            pm2 restart "cicd-backend" || pm2 start npm --name "cicd-backend" -- run dev
+            set -e
+
+            APP_DIR="/home/hiplstaging2/public_html/cicd.hipl-staging2.com"
+            APP_NAME="cicd-backend"
+
+            cd "$APP_DIR"
+
+            echo "======================================"
+            echo "Starting deployment..."
+            echo "======================================"
+
+            # ---------------------------------
+            # Save current version for rollback
+            # ---------------------------------
+
+            PREVIOUS_COMMIT=$(git rev-parse HEAD)
+
+            echo "Previous commit: $PREVIOUS_COMMIT"
+
+            # ---------------------------------
+            # Get latest code
+            # ---------------------------------
+
+            echo "Fetching latest code..."
+
+            git fetch origin main
+
+            NEW_COMMIT=$(git rev-parse origin/main)
+
+            echo "New commit: $NEW_COMMIT"
+
+            # ---------------------------------
+            # Switch to new code
+            # ---------------------------------
+
+            git reset --hard origin/main
+
+            # ---------------------------------
+            # Install dependencies
+            # ---------------------------------
+
+            echo "Installing dependencies..."
+
+            npm ci
+            npm run build
+            # ---------------------------------
+            # Restart application
+            # ---------------------------------
+
+            echo "Restarting PM2 application..."
+
+            pm2 restart "$APP_NAME" || pm2 start npm --name "$APP_NAME" -- run start
+
+            # ---------------------------------
+            # Verify PM2
+            # ---------------------------------
+
+            sleep 3
+
+            if ! pm2 describe "$APP_NAME" | grep -q "online"; then
+
+              echo "Application failed to start."
+
+              echo "======================================"
+              echo "ROLLING BACK..."
+              echo "======================================"
+
+              git reset --hard "$PREVIOUS_COMMIT"
+
+              npm ci
+              npm run build
+
+              pm2 restart "$APP_NAME" || pm2 start npm --name "$APP_NAME" -- run start
+
+              pm2 save
+
+              echo "Rollback completed."
+
+              exit 1
+            fi
+
+            # ---------------------------------
+            # Save PM2 state
+            # ---------------------------------
+
             pm2 save
+
+            echo "======================================"
+            echo "Deployment successful!"
+            echo "======================================"
+
+            echo "Previous commit: $PREVIOUS_COMMIT"
+            echo "Current commit:  $NEW_COMMIT"
