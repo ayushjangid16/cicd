@@ -3,7 +3,9 @@ const app = express();
 
 app.get('/', (req: Request, res: Response) => {
   const a: number = 'Hello';
-  return res.json({ message: 'Hello Implementing the CI part now' });
+
+  console.log(a);
+  return res.json({ message: 'Hello Checking the CI part now' });
 });
 
 app.listen(4545, () => {
