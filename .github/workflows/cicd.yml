@@ -21,7 +21,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run lint
         run: npm run lint
@@ -42,7 +42,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run typecheck
         run: npm run typecheck
@@ -107,7 +107,8 @@ jobs:
 
             echo "Installing dependencies..."
 
-            npm ci
+            npm install
+            npm run format
             npm run build
             # ---------------------------------
             # Restart application
@@ -133,7 +134,8 @@ jobs:
 
               git reset --hard "$PREVIOUS_COMMIT"
 
-              npm ci
+              npm install
+              npm run format
               npm run build
 
               pm2 restart "$APP_NAME" || pm2 start npm --name "$APP_NAME" -- run start
