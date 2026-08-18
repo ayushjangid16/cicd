@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 const app = express();
 
 app.get('/', (req: Request, res: Response) => {
-  const a: number = 'Hello';
+  const a: string = 'Hello';
 
   console.log(a);
   return res.json({ 
